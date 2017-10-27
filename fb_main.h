@@ -26,6 +26,8 @@ class fb_driver {
 		long int screensize;
 		char* fbp;
 
+		void commitVinfo();
+
 	public:
 		fb_driver();
 		void init();
@@ -37,10 +39,10 @@ class fb_driver {
 		int getScreenVX();
 		int getScreenVY();
 
-		void setScreenX();
-		void setScreenY();
-		void setScreenVX();
-		void setScreenVY();
+		void setScreenX(unsigned inX);
+		void setScreenY(unsigned inY);
+		void setScreenVX(unsigned inVX);
+		void setScreenVY(unsigned inVY);
 
 		triple<char> getPixel(unsigned x, unsigned y);
 		void setPixel(triple<char> RGB);
