@@ -1,16 +1,17 @@
 #include "./fb_main.h"
 
 // private members
-void commitVinfo() {
+void fb_driver::commitVinfo() {
 	if(ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo) == -1) {
 		printf("Error setting vinfo.\n");
-		return 1;
 	}
+
+	return;
 }
 
-long position(unsigned x, unsigned y) {
+long fb_driver::position(unsigned x, unsigned y) const {
 	long pos = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) +
-		(y + vinfo.yoffset) * finfo.line_len;
+		(y + vinfo.yoffset) * finfo.line_length;
 
 	return pos;
 }
@@ -33,24 +34,27 @@ void fb_driver::init() {
 	
 	if(!fbfd) {
 		printf("Error: cannot open framebuffer.\n");
-		return 1;
+		return;
 	}
 	printf("The framebuffer is open.\n");
 
 	if(ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo)) {
 		printf("Error reading vinfo.\n");
-		return 1;
+		return;
 	}
 	printf("Screen %dx%d, %dbpp\n", vinfo.xres, vinfo.yres, vinfo.bits_per_pixel);
 
 	memcpy(&orig_vinfo, &vinfo, sizeof(struct fb_var_screeninfo));
 
 	for(int i = 0; i < 3; i++) {
-		vinfo.bits_per_pixel = 8 * (2 * (i + 1));
+		vinfo.bits_per_pixel = 8 * (2 * i + 1);
 		if(ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo) != -1) {
 			bppflags[i] = true;
 		}
 	}
+
+	vinfo.bits_per_pixel = 32;
+	ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo);
 
 	if(ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo)) {
 		printf("Error reading finfo.\n");
@@ -63,9 +67,9 @@ void fb_driver::init() {
 				MAP_SHARED,
 				fbfd, 0));
 
-	if(static_cast<int>(fbp) == -1) {
+	if((int)fbp == -1) {
 		printf("Failed to map.\n");
-		return 1;
+		return;
 	}
 
 	return;
@@ -128,9 +132,9 @@ void fb_driver::setScreenBPP(unsigned inBPP) {
 	return;
 }
 
-triple<char> fb_driver::getPixel(unsigned x, unsigned y) const {
+triple fb_driver::getPixel(unsigned x, unsigned y) const {
 	long pos = position(x, y);
-	triple<char> retPixel;
+	triple retPixel;
 
 	if(vinfo.bits_per_pixel == 32) {
 		retPixel.x = *(fbp + pos + 2);
@@ -141,14 +145,14 @@ triple<char> fb_driver::getPixel(unsigned x, unsigned y) const {
 	return retPixel;
 }
 
-void setPixel(triple<char> RGB, unsigned x, unsigned y) {
+void fb_driver::setPixel(triple RGB, unsigned x, unsigned y) {
 	long pos = position(x, y);
 
 	if(vinfo.bits_per_pixel == 32) {
 		*(fbp + pos) = RGB.z;
 		*(fbp + pos + 1) = RGB.y;
 		*(fbp + pos + 2) = RGB.x;
-		*(fbp + pos + 3) = 0;
+		*(fbp + pos + 3) = 0xff;
 	}
 
 	return;

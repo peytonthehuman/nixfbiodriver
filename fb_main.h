@@ -10,11 +10,10 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-template<class T>
-struct triple<T> {
-	T x;
-	T y;
-	T z;
+struct triple {
+	char x;
+	char y;
+	char z;
 };
 
 class fb_driver {
@@ -27,7 +26,7 @@ class fb_driver {
 		char* fbp;
 
 		void commitVinfo();
-		long position(unsigned x, unsigned y);
+		long position(unsigned x, unsigned y) const;
 
 		bool* bppflags;
 
@@ -42,15 +41,15 @@ class fb_driver {
 		int getScreenVX() const;
 		int getScreenVY() const;
 
-		void setScreenX(unsigned inX) const;
-		void setScreenY(unsigned inY) const;
-		void setScreenVX(unsigned inVX) const;
-		void setScreenVY(unsigned inVY) const;
+		void setScreenX(unsigned inX);
+		void setScreenY(unsigned inY);
+		void setScreenVX(unsigned inVX);
+		void setScreenVY(unsigned inVY);
 
-		void setScreenBPP(unsigned inBPP) const;
+		void setScreenBPP(unsigned inBPP);
 
-		triple<char> getPixel(unsigned x, unsigned y) const;
-		void setPixel(triple<char> RGB, unsigned x, unsigned y);
+		triple getPixel(unsigned x, unsigned y) const;
+		void setPixel(triple RGB, unsigned x, unsigned y);
 
 		~fb_driver();
 };
