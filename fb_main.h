@@ -28,23 +28,27 @@ class fb_driver {
 
 		void commitVinfo();
 
+		bool* bppflags;
+
 	public:
 		fb_driver();
 		void init();
 
-		int getScreenX();
-		int getScreenY();
-		int getScreenBPP();
+		int getScreenX() const;
+		int getScreenY() const;
+		int getScreenBPP() const;
 
-		int getScreenVX();
-		int getScreenVY();
+		int getScreenVX() const;
+		int getScreenVY() const;
 
-		void setScreenX(unsigned inX);
-		void setScreenY(unsigned inY);
-		void setScreenVX(unsigned inVX);
-		void setScreenVY(unsigned inVY);
+		void setScreenX(unsigned inX) const;
+		void setScreenY(unsigned inY) const;
+		void setScreenVX(unsigned inVX) const;
+		void setScreenVY(unsigned inVY) const;
 
-		triple<char> getPixel(unsigned x, unsigned y);
+		void setScreenBPP(unsigned inBPP) const;
+
+		triple<char> getPixel(unsigned x, unsigned y) const;
 		void setPixel(triple<char> RGB);
 
 		~fb_driver();
