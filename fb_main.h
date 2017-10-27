@@ -27,6 +27,7 @@ class fb_driver {
 		char* fbp;
 
 		void commitVinfo();
+		long position(unsigned x, unsigned y);
 
 	public:
 		fb_driver();
