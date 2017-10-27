@@ -27,6 +27,7 @@ class fb_driver {
 		char* fbp;
 
 		void commitVinfo();
+		long position(unsigned x, unsigned y);
 
 		bool* bppflags;
 
@@ -49,7 +50,7 @@ class fb_driver {
 		void setScreenBPP(unsigned inBPP) const;
 
 		triple<char> getPixel(unsigned x, unsigned y) const;
-		void setPixel(triple<char> RGB);
+		void setPixel(triple<char> RGB, unsigned x, unsigned y);
 
 		~fb_driver();
 };
