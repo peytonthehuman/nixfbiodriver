@@ -46,7 +46,7 @@ class fb_driver {
 		void setScreenVY(unsigned inVY);
 
 		triple<char> getPixel(unsigned x, unsigned y);
-		void setPixel(triple<char> RGB);
+		void setPixel(triple<char> RGB, unsigned x, unsigned y);
 
 		~fb_driver();
 };
