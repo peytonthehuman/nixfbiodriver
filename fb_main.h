@@ -7,28 +7,35 @@
 #include <string.h>
 #include <fcntl.h>
 #include <linux/fb.h>
+#include <linux/tty.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/kd.h>
 
 struct triple {
-	char x;
-	char y;
-	char z;
+	u_int8_t x;
+	u_int8_t y;
+	u_int8_t z;
 };
 
 class fb_driver {
 	private:
 		int fbfd;
+		int tty_fd;
+		bool use_tty;
 		struct fb_var_screeninfo orig_vinfo;
 		struct fb_var_screeninfo vinfo;
 		struct fb_fix_screeninfo finfo;
-		long int screensize;
-		char* fbp;
+		long screensize;
+		u_int8_t *fbp;
 
 		void commitVinfo();
 		long position(unsigned x, unsigned y) const;
 
 		bool* bppflags;
+
+		u_int32_t makePixelColor(triple RGB);
+		triple getPixelColor(long position) const;
 
 	public:
 		fb_driver();
@@ -41,6 +48,8 @@ class fb_driver {
 		int getScreenVX() const;
 		int getScreenVY() const;
 
+		int getLineLength() const;
+
 		void setScreenX(unsigned inX);
 		void setScreenY(unsigned inY);
 		void setScreenVX(unsigned inVX);
@@ -49,7 +58,7 @@ class fb_driver {
 		void setScreenBPP(unsigned inBPP);
 
 		triple getPixel(unsigned x, unsigned y) const;
-		void setPixel(triple RGB, unsigned x, unsigned y);
+		void setPixel(triple& RGB, unsigned x, unsigned y);
 
 		~fb_driver();
 };

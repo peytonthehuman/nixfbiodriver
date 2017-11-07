@@ -16,10 +16,24 @@ long fb_driver::position(unsigned x, unsigned y) const {
 	return pos;
 }
 
+u_int32_t fb_driver::makePixelColor(triple RGB) {
+	return (RGB.x<<vinfo.red.offset) | (RGB.y<<vinfo.green.offset) | (RGB.z<<vinfo.blue.offset);
+}
+
+triple fb_driver::getPixelColor(long position) const {
+	triple RGB;
+	RGB.x = *(fbp + position + vinfo.red.offset);
+	RGB.y = *(fbp + position + vinfo.green.offset);
+	RGB.z = *(fbp + position + vinfo.blue.offset);
+	return RGB;
+}
+
 // public members
 
 fb_driver::fb_driver() {
 	fbfd = 0;
+	tty_fd = 0;
+	use_tty = true;
 	screensize = 0;
 	fbp = nullptr;
 	bppflags = new bool[3]; // 8, 16, 32 bits
@@ -31,12 +45,26 @@ fb_driver::fb_driver() {
 
 void fb_driver::init() {
 	fbfd = open("/dev/fb0", O_RDWR);
+	tty_fd = open("/dev/tty0", O_RDWR);
 	
 	if(!fbfd) {
 		printf("Error: cannot open framebuffer.\n");
 		return;
 	}
 	printf("The framebuffer is open.\n");
+
+	if(!tty_fd) {
+		printf("Terminal not accessible. Ignoring KDSETMODE.");
+		use_tty = false;
+	}
+
+	if(use_tty) {
+		if(ioctl(tty_fd, KDSETMODE, KD_GRAPHICS)) {
+			printf("Error setting Terminal to graphics. Ignoring.\n");
+			use_tty = false;
+			ioctl(tty_fd, KDSETMODE, KD_TEXT);
+		}
+	}
 
 	if(ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo)) {
 		printf("Error reading vinfo.\n");
@@ -53,6 +81,7 @@ void fb_driver::init() {
 		}
 	}
 
+	vinfo.grayscale = 0;
 	vinfo.bits_per_pixel = 32;
 	ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo);
 
@@ -60,9 +89,9 @@ void fb_driver::init() {
 		printf("Error reading finfo.\n");
 	}
 
-	screensize = finfo.smem_len;
+	screensize = vinfo.yres_virtual * finfo.line_length;
 
-	fbp = static_cast<char*>(mmap(0, screensize,
+	fbp = static_cast<u_int8_t*>(mmap(0, screensize,
 				PROT_READ | PROT_WRITE,
 				MAP_SHARED,
 				fbfd, 0));
@@ -94,6 +123,10 @@ int fb_driver::getScreenVX() const {
 
 int fb_driver::getScreenVY() const {
 	return static_cast<int>(vinfo.yres_virtual);
+}
+
+int fb_driver::getLineLength() const {
+	return static_cast<int>(finfo.line_length);
 }
 
 
@@ -134,26 +167,14 @@ void fb_driver::setScreenBPP(unsigned inBPP) {
 
 triple fb_driver::getPixel(unsigned x, unsigned y) const {
 	long pos = position(x, y);
-	triple retPixel;
-
-	if(vinfo.bits_per_pixel == 32) {
-		retPixel.x = *(fbp + pos + 2);
-		retPixel.y = *(fbp + pos + 1);
-		retPixel.z = *(fbp + pos);
-	}
-
-	return retPixel;
+	return getPixelColor(pos);
 }
 
-void fb_driver::setPixel(triple RGB, unsigned x, unsigned y) {
+void fb_driver::setPixel(triple& RGB, unsigned x, unsigned y) {
 	long pos = position(x, y);
+	u_int32_t color = makePixelColor(RGB);
 
-	if(vinfo.bits_per_pixel == 32) {
-		*(fbp + pos) = RGB.z;
-		*(fbp + pos + 1) = RGB.y;
-		*(fbp + pos + 2) = RGB.x;
-		*(fbp + pos + 3) = 0xff;
-	}
+	*((u_int32_t*)(fbp + pos)) = color;
 
 	return;
 }
@@ -165,4 +186,13 @@ fb_driver::~fb_driver() {
 	}
 
 	close(fbfd);
+
+	if(use_tty) {
+		if(ioctl(tty_fd, KDSETMODE, KD_TEXT)) {
+			printf("Error restoring terminal to text.\n");
+			printf("You may need to reboot your computer.\n");
+		}
+	}
+
+	close(tty_fd);
 }
