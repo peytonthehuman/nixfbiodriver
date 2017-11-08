@@ -1,16 +1,15 @@
 #include "fb_main.h"
 
 int main() {
-	system("setterm -cursor off");
+	//system("setterm -cursor off");
 	int width, height;
 	int x, y;
-	fb_driver fb;
+	fb_driver fb(true, false);
 
 	fb.init();
 
 	width = fb.getScreenX();
 	height = fb.getScreenY();
-
 	for(y = 0; y < height; y++) {
 		for(x = 0; x < width; x++) {
 			triple RGB;
@@ -51,8 +50,10 @@ int main() {
 		}
 	}
 
+	fb.swapBuffer();
+
 	sleep(4);
-	
+
 	system("clear");
 	system("setterm -cursor on");
 	return 0;

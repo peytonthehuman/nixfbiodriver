@@ -10,9 +10,8 @@ void fb_driver::commitVinfo() {
 }
 
 long fb_driver::position(unsigned x, unsigned y) const {
-	long pos = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) +
-		(y + vinfo.yoffset) * finfo.line_length;
-
+	long pos = (x + vinfo.xoffset) * (vinfo.bits_per_pixel/8);
+	pos += (y /*+ vinfo.yoffset*/) * finfo.line_length;
 	return pos;
 }
 
@@ -22,27 +21,29 @@ u_int32_t fb_driver::makePixelColor(triple RGB) {
 
 triple fb_driver::getPixelColor(long position) const {
 	triple RGB;
-	RGB.x = *(fbp + position + vinfo.red.offset);
-	RGB.y = *(fbp + position + vinfo.green.offset);
-	RGB.z = *(fbp + position + vinfo.blue.offset);
+	RGB.x = *(front_buffer + position + vinfo.red.offset);
+	RGB.y = *(front_buffer + position + vinfo.green.offset);
+	RGB.z = *(front_buffer + position + vinfo.blue.offset);
 	return RGB;
 }
 
 // public members
 
-fb_driver::fb_driver() {
+fb_driver::fb_driver(bool kdmode, bool pan) {
 	fbfd = 0;
 	tty_fd = 0;
-	use_tty = true;
+	use_tty = kdmode;
+	fbpan = pan;
 	screensize = 0;
-	fbp = nullptr;
+	front_buffer = nullptr;
+	back_buffer = nullptr;
 	bppflags = new bool[3]; // 8, 16, 32 bits
 	for(int i = 0; i < 3; i++) {
 		bppflags[i] = false;
 	}
 	return;
 }
-
+#include <iostream>
 void fb_driver::init() {
 	fbfd = open("/dev/fb0", O_RDWR);
 	tty_fd = open("/dev/tty0", O_RDWR);
@@ -83,21 +84,42 @@ void fb_driver::init() {
 
 	vinfo.grayscale = 0;
 	vinfo.bits_per_pixel = 32;
-	ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo);
-
+	commitVinfo();
+			
 	if(ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo)) {
 		printf("Error reading finfo.\n");
 	}
 
 	screensize = vinfo.yres_virtual * finfo.line_length;
 
-	fbp = static_cast<u_int8_t*>(mmap(0, screensize,
-				PROT_READ | PROT_WRITE,
-				MAP_SHARED,
-				fbfd, 0));
+	if(fbpan) {
+		front_buffer = static_cast<u_int8_t*>(mmap(0, screensize * 2,
+					PROT_READ | PROT_WRITE,
+					MAP_SHARED,
+					fbfd, (off_t)0));
+	} else {
+		front_buffer = static_cast<u_int8_t*>(mmap(0, screensize,
+					PROT_READ | PROT_WRITE,
+					MAP_SHARED,
+					fbfd, (off_t)0));
+	}
 
-	if((int)fbp == -1) {
-		printf("Failed to map.\n");
+	if(fbpan) {
+		back_buffer = front_buffer + screensize;
+	} else {
+		back_buffer = static_cast<u_int8_t*>(mmap(0, screensize,
+					PROT_READ | PROT_WRITE,
+					MAP_PRIVATE | MAP_ANONYMOUS,
+					-1, (off_t)0));
+	}
+
+	if((int)front_buffer == -1) {
+		printf("Failed to map frontbuffer.\n");
+		return;
+	}
+
+	if((int)back_buffer == -1) {
+		printf("Failed to map backbuffer.\n");
 		return;
 	}
 
@@ -172,15 +194,45 @@ triple fb_driver::getPixel(unsigned x, unsigned y) const {
 
 void fb_driver::setPixel(triple& RGB, unsigned x, unsigned y) {
 	long pos = position(x, y);
-	u_int32_t color = makePixelColor(RGB);
 
-	*((u_int32_t*)(fbp + pos)) = color;
+	*((u_int32_t*)(back_buffer + pos)) = makePixelColor(RGB);
 
 	return;
 }
 
+void fb_driver::swapBuffer() {
+	if(fbpan) {
+		if(vinfo.yoffset == 0) {
+			vinfo.yoffset = screensize;
+		} else {
+			vinfo.yoffset = 0;
+		}
+
+		if(ioctl(fbfd, FBIOPAN_DISPLAY, &vinfo)) {
+			printf("Error panning display.\n");
+		}
+	
+		u_int8_t* temp;
+		temp = front_buffer;
+		front_buffer = back_buffer;
+		back_buffer = temp;
+	} else {
+		memcpy(front_buffer, back_buffer, screensize);
+	}
+}
+
 fb_driver::~fb_driver() {
-	munmap(fbp, screensize);
+	if(fbpan) {
+		if(vinfo.yoffset != 0) {
+			vinfo.yoffset = 0;
+			if(ioctl(fbfd, FBIOPAN_DISPLAY, &vinfo)) {
+				printf("Error reseting display panning.\n");
+			}
+		}
+	}
+
+	int buffers = fbpan ? 2 : 1;
+	munmap(front_buffer, screensize * buffers);
 	if(ioctl(fbfd, FBIOPUT_VSCREENINFO, &orig_vinfo) == -1) {
 		printf("Error restoring original configuration.\n");
 	}

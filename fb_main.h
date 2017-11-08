@@ -23,11 +23,13 @@ class fb_driver {
 		int fbfd;
 		int tty_fd;
 		bool use_tty;
+		bool fbpan;
 		struct fb_var_screeninfo orig_vinfo;
 		struct fb_var_screeninfo vinfo;
 		struct fb_fix_screeninfo finfo;
-		long screensize;
-		u_int8_t *fbp;
+		long int screensize;
+		u_int8_t *front_buffer;
+		u_int8_t *back_buffer;
 
 		void commitVinfo();
 		long position(unsigned x, unsigned y) const;
@@ -38,7 +40,7 @@ class fb_driver {
 		triple getPixelColor(long position) const;
 
 	public:
-		fb_driver();
+		fb_driver(bool kdmode, bool pan);
 		void init();
 
 		int getScreenX() const;
@@ -60,6 +62,8 @@ class fb_driver {
 		triple getPixel(unsigned x, unsigned y) const;
 		void setPixel(triple& RGB, unsigned x, unsigned y);
 
+		void swapBuffer();
+		
 		~fb_driver();
 };
 
