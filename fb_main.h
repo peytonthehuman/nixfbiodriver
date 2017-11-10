@@ -30,6 +30,8 @@ class fb_driver {
 		long int screensize;
 		u_int8_t *front_buffer;
 		u_int8_t *back_buffer;
+		
+		u_int8_t *bg_buffer;
 
 		void commitVinfo();
 		long position(unsigned x, unsigned y) const;
@@ -63,6 +65,9 @@ class fb_driver {
 		void setPixel(triple& RGB, unsigned x, unsigned y);
 
 		void swapBuffer();
+		
+		void changeBGColor(triple& in);
+		void clearToBG(bool immediateRefresh);
 		
 		~fb_driver();
 };

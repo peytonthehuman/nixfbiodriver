@@ -111,6 +111,10 @@ void fb_driver::init() {
 					PROT_READ | PROT_WRITE,
 					MAP_PRIVATE | MAP_ANONYMOUS,
 					-1, (off_t)0));
+		bg_buffer = static_cast<u_int8_t*>(mmap(0, screensize,
+					PROT_READ | PROT_WRITE,
+					MAP_PRIVATE | MAP_ANONYMOUS,
+					-1, (off_t)0));
 	}
 
 	if((int)front_buffer == -1) {
@@ -221,6 +225,23 @@ void fb_driver::swapBuffer() {
 	}
 }
 
+void fb_driver::changeBGColor(triple& in) {
+	for(int i = 0; i < vinfo.xres * vinfo.yres; i++) {
+		*((u_int32_t*)(bg_buffer + i)) = makePixelColor(in);
+	}
+}
+	
+void fb_driver::clearToBG(bool immediateRefresh) {
+	if(fbpan) {
+		return;
+	} else {
+		memcpy(back_buffer, bg_buffer, screensize);
+		if(immediateRefresh) {
+			swapBuffer();
+		}
+	}
+}
+
 fb_driver::~fb_driver() {
 	if(fbpan) {
 		if(vinfo.yoffset != 0) {
@@ -229,7 +250,11 @@ fb_driver::~fb_driver() {
 				printf("Error reseting display panning.\n");
 			}
 		}
+	} else {
+		munmap(back_buffer, screensize);
 	}
+	
+	munmap(bg_buffer, screensize);
 
 	int buffers = fbpan ? 2 : 1;
 	munmap(front_buffer, screensize * buffers);
