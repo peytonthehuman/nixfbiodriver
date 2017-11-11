@@ -28,7 +28,7 @@ void draw(fb_driver& fb) {
 	dy = 2;
 
 	int fps = 60;
-	int secs = 30;
+	int secs = 300;
 
 	triple black;
 	black.x = 0;
@@ -48,13 +48,14 @@ void draw(fb_driver& fb) {
 	struct timespec cursor;
 	clock_gettime(CLOCK_MONOTONIC, &cursor);
 	int timestep = ((double)1/(double)60) * 1000000000;
+	int wait;
 
 	for(int i = 0; i < (fps * secs); i++) {
 		int start = cursor.tv_nsec;
 		//wipeScreen(black, fb);
 		color.x = ((double)x/800) * 256;
 		color.y = ((double)y/600) * 256;
-		color.z = ((double)(x * y))/(800*600) * 256;
+		color.z = ((double)i/(double)(fps * secs)) * 256;
 		fill_rect(x, y, w, h, color, fb);
 		x = x + dx;
 		y = y + dy;
@@ -71,7 +72,7 @@ void draw(fb_driver& fb) {
 
 		fb.swapBuffer();
 
-		int wait = timestep - (cursor.tv_nsec - start);
+		wait = timestep - (cursor.tv_nsec - start);
 		usleep(wait < 0 ? 0 : wait/1000);
 	}
 	wipeScreen(black, fb);

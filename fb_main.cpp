@@ -1,5 +1,9 @@
 #include "./fb_main.h"
 
+#ifndef FBIO_WAITFORVSYNC_FRAME
+#define FBIO_WAITFORVSYNC_FRAME _IOW('F', 0x20, __u32)
+#endif
+
 // private members
 void fb_driver::commitVinfo() {
 	if(ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo) == -1) {
@@ -82,6 +86,7 @@ void fb_driver::init() {
 		}
 	}
 
+	vinfo.yres_virtual *= 2;
 	vinfo.grayscale = 0;
 	vinfo.bits_per_pixel = 32;
 	commitVinfo();
@@ -90,7 +95,7 @@ void fb_driver::init() {
 		printf("Error reading finfo.\n");
 	}
 
-	screensize = vinfo.yres_virtual * finfo.line_length;
+	screensize = vinfo.yres * finfo.line_length;
 
 	if(fbpan) {
 		front_buffer = static_cast<u_int8_t*>(mmap(0, screensize * 2,
@@ -207,7 +212,7 @@ void fb_driver::setPixel(triple& RGB, unsigned x, unsigned y) {
 void fb_driver::swapBuffer() {
 	if(fbpan) {
 		if(vinfo.yoffset == 0) {
-			vinfo.yoffset = screensize;
+			vinfo.yoffset = vinfo.yres;
 		} else {
 			vinfo.yoffset = 0;
 		}
@@ -221,6 +226,8 @@ void fb_driver::swapBuffer() {
 		front_buffer = back_buffer;
 		back_buffer = temp;
 	} else {
+		unsigned int arg = 0;
+		ioctl(fbfd, FBIO_WAITFORVSYNC, &arg);
 		memcpy(front_buffer, back_buffer, screensize);
 	}
 }
